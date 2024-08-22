@@ -1,10 +1,10 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
+#include "flash_lib.h"
 #include "hardware/flash.h"
 #include "hardware/sync.h"
-#include "flash_lib.h"
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define MEMORY_SIGNATURE 0x27062021
 #define SIGNATURE_SIZE_BYTES 4
@@ -26,7 +26,7 @@ uint16_t _logical_sectors_count;
 uint8_t _group_by;
 
 uint16_t _get_random_physical_sector();
-uint8_t * get_sector_read_pointer(uint32_t physical_sector_address);
+uint8_t *get_sector_read_pointer(uint32_t physical_sector_address);
 void init_sectors();
 void _write_sector_by_physical_addr(uint32_t physical_sector_address, const uint8_t *data);
 void delete_sectors(uint32_t begin, uint32_t end);
@@ -40,7 +40,7 @@ void read_and_update_header(uint32_t physical_sector_id, SectorHeader *sectorHea
 
 /**
  * @brief Initializes the flash memory library.
- * 
+ *
  * @param lower_bound The starting sector ID for the library.
  * @param logical_sectors_count The number of logical sectors to be managed.
  * @param group_by Number of physical sectors to group into one logical sector.
@@ -50,7 +50,7 @@ void init_flash_lib(uint32_t lower_bound, uint16_t logical_sectors_count, uint8_
     _lower_bound = lower_bound;
     _upper_bound = lower_bound + logical_sectors_count * group_by;
     _group_by = group_by;
-    
+
     srand(time_us_32());
 
     init_sectors();
@@ -58,18 +58,18 @@ void init_flash_lib(uint32_t lower_bound, uint16_t logical_sectors_count, uint8_
 
 /**
  * @brief Initializes flash memory sectors during startup.
- * 
+ *
  * This function performs the following operations:
- * 
+ *
  * 1. **Validation Sweep**: Scans through all logical sector headers to validate their
  *    integrity by checking the sector signature and ID range. It also counts how many
  *    sectors require initialization.
- * 
+ *
  * 2. **Initialization**: For sectors that need initialization:
  *    - Finds uninitialized logical IDs by checking the range from 0 to the maximum.
  *    - Configure headers for these uninitialized IDs.
- * 
- * Note: The process of identifying uninitialized IDs has O(n^2) complexity, where n is 
+ *
+ * Note: The process of identifying uninitialized IDs has O(n^2) complexity, where n is
  * the number of logical sectors.
  */
 void init_sectors() {
@@ -117,12 +117,12 @@ void init_sectors() {
     }
 }
 
-uint8_t * read_sector(uint16_t logical_sector, uint32_t offset_bytes) {
+uint8_t *read_sector(uint16_t logical_sector, uint32_t offset_bytes) {
     uint32_t physical_sector_address;
     uint32_t physical_sector_id = offset_bytes / FLASH_SECTOR_SIZE;
     uint32_t physical_sector_offset = offset_bytes % FLASH_SECTOR_SIZE;
     get_physical_sector_from_logical_id(logical_sector, physical_sector_id, &physical_sector_address);
-    return (uint8_t *) (get_memory_addr_from_physical_sector(physical_sector_address + physical_sector_offset) + XIP_BASE);
+    return (uint8_t *)(get_memory_addr_from_physical_sector(physical_sector_address + physical_sector_offset) + XIP_BASE);
 }
 
 void erase_logical_sector(uint16_t logical_sector) {
@@ -130,7 +130,7 @@ void erase_logical_sector(uint16_t logical_sector) {
 
     uint32_t irq_status = save_and_disable_interrupts();
 
-    SectorHeader *sectorHeaders = (SectorHeader *) malloc(_group_by * sizeof(SectorHeader));
+    SectorHeader *sectorHeaders = (SectorHeader *)malloc(_group_by * sizeof(SectorHeader));
 
     for (uint8_t i = 0; i < _group_by; ++i) {
         uint32_t physical_sector_address;
@@ -257,12 +257,12 @@ void prepare_buffer_to_write(uint8_t *buffer, const void *data, uint8_t data_siz
 
 /**
  * @brief Retrieves a random uninitialized sector address.
- * 
+ *
  * This function first generates a random sector address within the valid range. If the
  * generated sector is already initialized, the function searches upwards from that address
  * until it finds an uninitialized sector. If no uninitialized sector is found going upwards,
  * it then searches downwards.
- * 
+ *
  * @return An uninitialized sector address within the range defined by _lower_bound and _upper_bound.
  */
 uint16_t _get_random_physical_sector() {
@@ -276,7 +276,7 @@ uint16_t _get_random_physical_sector() {
     }
 
     // Check downwards
-    for (uint16_t physical_sector = random_physical_sector-1; physical_sector >= _lower_bound; --physical_sector) {
+    for (uint16_t physical_sector = random_physical_sector - 1; physical_sector >= _lower_bound; --physical_sector) {
         if (!check_sector_signature(physical_sector)) {
             return physical_sector;
         }
@@ -289,8 +289,8 @@ uint32_t get_memory_addr_from_physical_sector(uint32_t physical_sector) {
     return physical_sector * FLASH_SECTOR_SIZE;
 }
 
-uint8_t * get_sector_read_pointer(uint32_t physical_sector) {
-    return (uint8_t *) (get_memory_addr_from_physical_sector(physical_sector) + XIP_BASE);
+uint8_t *get_sector_read_pointer(uint32_t physical_sector) {
+    return (uint8_t *)(get_memory_addr_from_physical_sector(physical_sector) + XIP_BASE);
 }
 
 void _write_sector_by_physical_addr(uint32_t physical_sector_address, const uint8_t *data) {
@@ -332,7 +332,7 @@ void delete_sectors(uint32_t begin, uint32_t end) {
     uint8_t *read = get_sector_read_pointer(_lower_bound);
 
     uint32_t irq_status = save_and_disable_interrupts();
-    
+
     for (uint32_t physical_sector = begin; physical_sector < end; ++physical_sector) {
         flash_range_program(get_memory_addr_from_physical_sector(physical_sector), cleanHeaderBuffer, FLASH_PAGE_SIZE);
     }
@@ -375,19 +375,17 @@ void flash_lib_example() {
     init_flash_lib(lower_bound, sectors_count, GROUP_BY_1);
     // *** Code ***
     end_time = get_absolute_time();
-    elapsed_time = 1.0*absolute_time_diff_us(start_time, end_time)/1000;
+    elapsed_time = 1.0 * absolute_time_diff_us(start_time, end_time) / 1000;
     printf("Time to init library: %.3fms\n", elapsed_time);
-
 
     start_time = get_absolute_time();
     // *** Code ***
     get_first_sector_from_logical_id(sector_to_write, &my_physical_sector);
     // *** Code ***
     end_time = get_absolute_time();
-    elapsed_time = 1.0*absolute_time_diff_us(start_time, end_time);
+    elapsed_time = 1.0 * absolute_time_diff_us(start_time, end_time);
     printf("Time to find sector: %.2fus\n", elapsed_time);
     printf("Logical id: %d At physical addr at: %d\n", sector_to_write, my_physical_sector);
-
 
     // start_time = get_absolute_time();
     // // *** Code ***
@@ -404,7 +402,6 @@ void flash_lib_example() {
     // elapsed_time = 1.0*absolute_time_diff_us(start_time, end_time)/1000;
     // printf("Time to erase to sector: %.2fms\n", elapsed_time);
 
-
     start_time = get_absolute_time();
     // *** Code ***
     // write_sector(sector_to_write, 0, data_to_write, sizeof(data_to_write));
@@ -417,15 +414,14 @@ void flash_lib_example() {
     restore_interrupts(irq_status);
     // *** Code ***
     end_time = get_absolute_time();
-    elapsed_time = 1.0*absolute_time_diff_us(start_time, end_time);
+    elapsed_time = 1.0 * absolute_time_diff_us(start_time, end_time);
     printf("Time to write to sector: %.2fus\n", elapsed_time);
-
 
     start_time = get_absolute_time();
     // *** Code ***
     get_first_sector_from_logical_id(1 << 15, &my_physical_sector);
     // *** Code ***
     end_time = get_absolute_time();
-    elapsed_time = 1.0*absolute_time_diff_us(start_time, end_time);
+    elapsed_time = 1.0 * absolute_time_diff_us(start_time, end_time);
     printf("Time to read all headers: %.2fus\n", elapsed_time);
 }
